@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1c1914" />
+  <title>Halt — stop paying for things you forgot</title>
+  <meta name="description" content="Privacy-first subscription tracker. No bank login. Find charges, kill trials, and follow honest cancel paths." />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./icon.svg" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="eyebrow">Halt</div>
+    </header>
+
+    <section class="view on" id="view-list">
+      <h1>You’re still paying <span id="month-total">$0</span></h1>
+      <p class="sub">Nothing leaves this phone. No bank password.</p>
+      <div class="hero">
+        <div class="label">Likely unused or converting</div>
+        <div class="num" id="waste-total">$0</div>
+        <div class="split">
+          <div class="mini"><b id="count-active">0</b><span>active subs</span></div>
+          <div class="mini"><b id="count-cut">0</b><span>ready to cut</span></div>
+        </div>
+      </div>
+      <div class="filter">
+        <button class="chip on" data-filter="all" onclick="setFilter('all')">All</button>
+        <button class="chip" data-filter="cut" onclick="setFilter('cut')">Cut these</button>
+        <button class="chip" data-filter="keep" onclick="setFilter('keep')">Keepers</button>
+      </div>
+      <div class="card" id="list"></div>
+    </section>
+
+    <section class="view" id="view-trials">
+      <h1>Trials that convert</h1>
+      <p class="sub">Free weeks become paid if you forget. Track the end date here.</p>
+      <div class="card" id="trial-list" style="margin-top:14px"></div>
+      <div class="actions">
+        <button class="btn ink" onclick="openEdit()">Add a trial</button>
+      </div>
+    </section>
+
+    <section class="view" id="view-scan">
+      <h1>Paste a statement</h1>
+      <p class="sub">Copy lines from a PDF or bank export. Halt looks for known merchants and dollar amounts. It does not log in to your bank.</p>
+      <label for="scan-text">Statement text</label>
+      <textarea id="scan-text" placeholder="09/12 NETFLIX.COM 15.49&#10;09/14 SPOTIFY 12.99&#10;09/18 PEACOCK 14.99"></textarea>
+      <div class="actions">
+        <button class="btn ink" onclick="parseStatement()">Find charges</button>
+      </div>
+    </section>
+
+    <section class="view" id="view-more">
+      <h1>Finder is free.</h1>
+      <p class="sub">Cancel help is a pack later. This build keeps everything on-device.</p>
+      <div class="card pad">
+        <b>On this phone</b>
+        <p class="sub">List, trial dates, statement paste, cancel guides, gym letter.</p>
+      </div>
+      <div class="card pad">
+        <b>Not in v1</b>
+        <p class="sub">Bank login, live concierge cancel, Apple/Google sync, paid credits.</p>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" onclick="exportData()">Download backup</button>
+        <label class="btn ghost" style="text-align:center">
+          Restore backup
+          <input id="file-import" type="file" accept="application/json" hidden />
+        </label>
+        <button class="btn ghost" onclick="resetDemo()">Load demo list</button>
+        <button class="btn danger" onclick="wipe()">Erase this device</button>
+      </div>
+    </section>
+
+    <section class="view" id="view-detail">
+      <p class="sub" id="d-kicker"></p>
+      <h1 id="d-title"></h1>
+      <p class="sub" id="d-sub"></p>
+      <div class="card pad" id="d-steps" style="margin-top:14px"></div>
+      <div class="actions">
+        <button class="btn green" id="d-open">Open cancel page</button>
+        <button class="btn ink" id="d-letter" onclick="downloadLetter()">Download cancel letter</button>
+        <button class="btn ghost" onclick="markCanceled()">Mark canceled</button>
+        <button class="btn ghost" onclick="markPending()">Mark pending</button>
+        <button class="btn ghost" onclick="openEdit(state.editing)">Edit</button>
+        <button class="btn danger" onclick="removeSub()">Remove from list</button>
+      </div>
+    </section>
+
+    <section class="view" id="view-edit">
+      <h1>Subscription</h1>
+      <form onsubmit="saveEdit(event)">
+        <label>Name</label>
+        <input id="f-name" required placeholder="Peacock" />
+        <label>Amount</label>
+        <input id="f-amount" type="number" min="0" step="0.01" required />
+        <label>Cycle</label>
+        <select id="f-cycle">
+          <option value="month">Monthly</option>
+          <option value="year">Yearly</option>
+          <option value="week">Weekly</option>
+        </select>
+        <label>Status</label>
+        <select id="f-status">
+          <option value="active">Active</option>
+          <option value="trial">Trial</option>
+          <option value="pending">Pending cancel</option>
+          <option value="canceled">Canceled</option>
+        </select>
+        <label>Next renewal</label>
+        <input id="f-next" type="date" />
+        <label>Trial ends</label>
+        <input id="f-trial" type="date" />
+        <label>Last used</label>
+        <input id="f-used" type="date" />
+        <label>Source / last 4</label>
+        <input id="f-source" placeholder="Visa 8821 or Apple" />
+        <label>Notes / member ID</label>
+        <input id="f-notes" placeholder="Club location or account email" />
+        <div class="actions">
+          <button class="btn ink" type="submit">Save</button>
+          <button class="btn ghost" type="button" onclick="show('list')">Cancel</button>
+        </div>
+      </form>
+    </section>
+
+    <button class="fab" id="fab" onclick="openEdit()" aria-label="Add subscription">+</button>
+    <nav class="tabbar">
+      <div class="tabs">
+        <button class="tab on" data-view="list" onclick="show('list')">List</button>
+        <button class="tab" data-view="trials" onclick="show('trials')">Trials</button>
+        <button class="tab" data-view="scan" onclick="show('scan')">Scan</button>
+        <button class="tab" data-view="more" onclick="show('more')">More</button>
+      </div>
+    </nav>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="./guides.js"></script>
+  <script src="./app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js").catch(() => {});
+    }
+  </script>
+</body>
+</html>
